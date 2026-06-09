@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campus Companion v1.1</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--text:#222;--accent:#2563eb}
+body.dark{--bg:#121212;--card:#1e1e1e;--text:#f1f1f1;--accent:#60a5fa}
+body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{padding:15px;text-align:center;background:var(--accent);color:#fff}
+.page{display:none;padding:15px 15px 80px}
+.page.active{display:block}
+.card{background:var(--card);padding:12px;border-radius:12px;margin:10px 0}
+input,select,button{width:100%;padding:10px;margin:6px 0;box-sizing:border-box}
+button{background:var(--accent);color:#fff;border:none;border-radius:8px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid #999}
+nav button{margin:0;border-radius:0}
+.small{font-size:.9em}
+</style>
+</head>
+<body>
+<header><h2>🎓 Campus Companion v1.1</h2></header>
+
+<div id="dashboard" class="page active">
+<div class="card"><h3>Dashboard</h3><div id="stats"></div></div>
+</div>
+
+<div id="attendance" class="page">
+<div class="card">
+<h3>Add Subject</h3>
+<input id="subjectName" placeholder="Subject name">
+<button onclick="addSubject()">Add Subject</button>
+<div id="subjects"></div>
+</div>
+
+<div class="card">
+<h3>Attendance Entry</h3>
+<input type="date" id="date">
+<select id="subjectSelect"></select>
+<select id="entryType">
+<option value="attendance">Attendance</option>
+<option value="collegeHoliday">College Holiday</option>
+<option value="subjectHoliday">Subject Holiday</option>
+</select>
+<input type="number" id="conducted" placeholder="Periods Conducted">
+<input type="number" id="attended" placeholder="Periods Attended">
+<button onclick="saveAttendance()">Save Entry</button>
+</div>
+
+<div class="card">
+<h3>Records</h3>
+<div id="records"></div>
+<button onclick="exportCSV()">Export CSV</button>
+</div>
+</div>
+
+<div id="cgpa" class="page">
+<div class="card">
+<h3>CGPA Calculator</h3>
+<input id="gpas" placeholder="Enter GPAs separated by commas e.g. 8.2,7.8,9.1">
+<button onclick="calcCGPA()">Calculate</button>
+<div id="cgpaResult"></div>
+</div>
+</div>
+
+<div id="reminders" class="page">
+<div class="card">
+<h3>Reminders</h3>
+<input id="remTitle" placeholder="Reminder title">
+<input type="date" id="remDate">
+<button onclick="addReminder()">Add Reminder</button>
+<div id="reminderList"></div>
+</div>
+</div>
+
+<div id="settings" class="page">
+<div class="card">
+<h3>Settings</h3>
+<input id="goal" type="number" value="75">
+<button onclick="saveGoal()">Save Attendance Goal</button>
+<button onclick="toggleTheme()">Toggle Light/Dark Mode</button>
+</div>
+</div>
+
+<nav>
+<button onclick="showPage('dashboard')">🏠</button>
+<button onclick="showPage('attendance')">📅</button>
+<button onclick="showPage('cgpa')">🎓</button>
+<button onclick="showPage('reminders')">🔔</button>
+<button onclick="showPage('settings')">⚙️</button>
+</nav>
+
+<script>
+let subjects=JSON.parse(localStorage.getItem('subjects')||'[]');
+let records=JSON.parse(localStorage.getItem('records')||'[]');
+let reminders=JSON.parse(localStorage.getItem('reminders')||'[]');
+
+function save(){localStorage.setItem('subjects',JSON.stringify(subjects));
+localStorage.setItem('records',JSON.stringify(records));
+localStorage.setItem('reminders',JSON.stringify(reminders));
+render();}
+
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');}
+
+function addSubject(){
+let s=document.getElementById('subjectName').value.trim();
+if(!s)return;
+subjects.push(s);document.getElementById('subjectName').value='';save();
+}
+
+function saveAttendance(){
+let date=dateEl.value,subject=subjectSelect.value,type=entryType.value;
+if(!date)return;
+records=records.filter(r=>!(r.date===date && r.subject===subject));
+records.push({date,subject,type,conducted:+conducted.value||0,attended:+attended.value||0});
+save();
+}
+function calcCGPA(){
+let arr=document.getElementById('gpas').value.split(',').map(x=>parseFloat(x)).filter(x=>!isNaN(x));
+if(!arr.length)return;
+let cgpa=arr.reduce((a,b)=>a+b,0)/arr.length;
+document.getElementById('cgpaResult').innerHTML=`CGPA: <b>${cgpa.toFixed(2)}</b><br>Percentage: <b>${(cgpa*9.5).toFixed(2)}%</b>`;
+}
+function addReminder(){
+let t=remTitle.value,d=remDate.value;if(!t||!d)return;
+reminders.push({t,d});save();
+}
+function saveGoal(){localStorage.setItem('goal',goal.value);alert('Saved');}
+function toggleTheme(){document.body.classList.toggle('dark');localStorage.setItem('theme',document.body.classList.contains('dark')?'dark':'light');}
+
+function exportCSV(){
+let csv="Date,Subject,Type,Conducted,Attended\n"+records.map(r=>`${r.date},${r.subject},${r.type},${r.conducted},${r.attended}`).join("\n");
+let blob=new Blob([csv],{type:'text/csv'});
+let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='attendance_report.csv';a.click();
+}
+
+function render(){
+subjects.innerHTML=subjects.map((s,i)=>`<div class='small'>${s}</div>`).join('');
+subjectSelect.innerHTML=subjects.map(s=>`<option>${s}</option>`).join('');
+recordsEl=document.getElementById('records');
+recordsEl.innerHTML=records.map(r=>`<div class='small'>${r.date} - ${r.subject} (${r.type})</div>`).join('');
+reminderList.innerHTML=reminders.map(r=>`<div>${r.t} - ${r.d}</div>`).join('');
+
+let present=0,total=0;
+records.forEach(r=>{if(r.type==='attendance'){present+=r.attended;total+=r.conducted;}});
+let pct=total?((present/total)*100).toFixed(1):0;
+document.getElementById('stats').innerHTML=`Attendance: <b>${pct}%</b><br>Subjects: ${subjects.length}<br>Present: ${present}<br>Total Classes: ${total}<br>Goal: ${localStorage.getItem('goal')||75}%`;
+}
+if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark');
+goal.value=localStorage.getItem('goal')||75;
+render();
+</script>
+</body>
+</html>
